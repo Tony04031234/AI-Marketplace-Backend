@@ -1,23 +1,52 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from transformers import pipeline, set_seed
 import requests
 from requests.structures import CaseInsensitiveDict
 import tweepy
-
+from PIL import Image
+import pytesseract
+import werkzeug
+from werkzeug.security import generate_password_hash, check_password_hash
+from config import (
+    TWITTER_API_KEY_CLIENT,
+    TWITTER_API_KEY_SECRET,
+    TWITTER_ACCESS_TOKEN,
+    TWITTER_ACCESS_TOKEN_SECRET,
+    FLASK_SECRET_KEY,
+    OPENAI_API_KEY,
+    QUERY_URL_NAME,
+)
 
 app = Flask(__name__)
 CORS(app, resources={r'*': {'origins': '*'}})
 
-api_key = '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'
-QUERY_URL = "https://api.openai.com/v1/images/generations"
+app.secret_key = FLASK_SECRET_KEY  #
+api_key = OPENAI_API_KEY
+QUERY_URL = QUERY_URL_NAME 
 
+@app.route('/api/set_api_key', methods=['POST'])
+def set_api_key():
+    # Validate user's credentials
+    username = request.json.get('username')
+    password = request.json.get('password')
+    api_key = request.json.get('api_key')
 
+    # In real application, you would fetch user data from a database
+    # Here we're using hardcoded example data
+    stored_password = 'password'  
+    stored_username = 'username'
+    if username == stored_username and password == stored_password:
+        # If user is valid, store the api_key in server-side session
+        session['api_key'] = api_key
+        return jsonify({'status': 'success'}), 200
+    else: 
+        return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
 
 def send_tweet(image_url, title, content):
     try:
-        auth = tweepy.OAuthHandler('7eDkwEelSCyHwbTsfCAMOibuc', 'tsSGW8gNO0glGIy1mKkTR5jcLg83GciAIEUVnxTau6WczAoF5h')
-        auth.set_access_token('1651360062714298370-Qkg4ysQql5sBxL0iWweSKdRft9jEbP', 'mmy18kThfSPhosHuXgBMYVRG7uCNxLqsYrTThi2s6IRzk')
+        auth = tweepy.OAuthHandler(TWITTER_API_KEY_CLIENT, TWITTER_API_KEY_SECRET)
+        auth.set_access_token(TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET)
         api = tweepy.API(auth)
         
         print(f"Image URL: {image_url}")
@@ -80,6 +109,21 @@ def generate_header_image(prompt, model, api_key):
     response_text = resp.json()
     return response_text['data'][0]['url']
 
+def generate_slides(summary):
+    slide_texts = summary.split('\n')
+    slides = []
+
+    for text in slide_texts:
+        sentences = text.split('. ')
+        title = sentences[0].capitalize()
+        content = '. '.join(sentences[1:]).capitalize()
+        slides.append({
+            'title': title,
+            'content': content
+        })
+
+    return slides
+
 @app.route('/api/generate_presentation', methods=['POST'])
 def generate_presentation():
     set_seed(42)  # set a seed for reproducibility
@@ -98,23 +142,41 @@ def generate_presentation():
         print(f'slides[0]["content"]: {slides[0]["content"]}')
     return jsonify({ 'slides': slides, 'header_image': header_image })
 
+@app.route('/api/generate_summary', methods=['POST'])
+def generate_summary():
+    set_seed(42) # set a seed for reproducibility
+    input_text = request.json['inputText']
+    summarizer = pipeline('summarization', model='t5-base')
+    summary = summarizer(input_text, max_length=100)[0]['summary_text']
+    return jsonify({ 'summary': summary })
+
+@app.route('/api/generate_code', methods=['POST'])
+def generate_code():
+    set_seed(42)  # set a seed for reproducibility
+
+    prompt = request.json['prompt']
+    code_generator = pipeline('text-generation', model='EleutherAI/gpt-neo-1.3B')
+    generated_code = code_generator(prompt, max_length=100, do_sample=True, temperature=0.8)[0]['generated_text']
+
+    return jsonify({'code': generated_code})
+
+def image_to_text(image_file):
+    text = pytesseract.image_to_string(Image.open(image_file))
+    return text
+
+@app.route('/api/process_image', methods=['POST'])
+def process_image():
+    image_file = request.files['image']
+    filename = werkzeug.utils.secure_filename(image_file.filename)
+    image_file.save(filename)
+    
+    extracted_text = image_to_text(filename)
+    # Perform any further analysis on the extracted text as required
+    # For example, text summarization, sentiment analysis, etc.
+
+    return jsonify({ 'text': extracted_text, 'analysis': 'your_analysis_here' })
 
 
-
-def generate_slides(summary):
-    slide_texts = summary.split('\n')
-    slides = []
-
-    for text in slide_texts:
-        sentences = text.split('. ')
-        title = sentences[0].capitalize()
-        content = '. '.join(sentences[1:]).capitalize()
-        slides.append({
-            'title': title,
-            'content': content
-        })
-
-    return slides
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

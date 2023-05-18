@@ -1,0 +1,97 @@
+# .gitignore
+
+# Python files
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+__pycache__
+
+# Virtual environment
+venv/
+env/
+
+# secret
+config.py
+
+# Project settings
+.settings/
+.vscode/
+.idea/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Flask file uploads
+uploads/
+
+# Databases
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# Pycache
+**/__pycache__/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# pyenv
+.python-version
+
+# celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# dotenv
+.env
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Directories created by virtualenv
+bin/
+include/
+lib/
+lib64/
